@@ -38,7 +38,7 @@ class Fuse:
 
 
 CONFIG = {
-    "active_high": False
+    "active_high": False,
     "tubes":{
         0: 4,
         1: 17,
