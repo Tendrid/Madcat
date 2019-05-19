@@ -11,8 +11,26 @@ import json
 import hashlib
 import urllib3
 import time
-from gpiozero import OutputDevice
+import os
+import asyncio
 
+from gpiozero import OutputDevice
+from gpiozero.exc import BadPinFactory
+
+
+if os.environ.get("DEBUG"):
+    print("----- DEBUG MODE ENABLED -----")
+
+    class OutputDevice:
+        def __init__(self, *args, **kwargs):
+            self.pin = args[0]
+            print("PIN: {} created with active_high: {}".format(self.pin, kwargs.get("active_high")))
+
+        def on(self):
+            print("PIN: {} set to on".format(self.pin))
+
+        def off(self):
+            print("PIN: {} set to off".format(self.pin))
 
 # TODO:
 """
@@ -27,24 +45,24 @@ Fuse is a single ignition point in the launch system.  it does not know
 how many other fuses there are, or their states.
 """
 class Fuse:
-    def __init__(self, tube_id, pin_id, active_high=True):
+    def __init__(self, tube_id, pin_id, active_high=False):
         self.id = tube_id
-        self.relay = OutputDevice(
-            pin_id,
-            active_high=active_high)
+        self.relay = OutputDevice(pin_id, active_high=active_high)
         self.arm()
 
-    def fire(self):
-        print("BOOM MOTHERFUCKER")
+    async def _toggle(self):
         self.relay.on()
-        time.sleep(0.5)
+        await asyncio.sleep(0.5)
         self.relay.off()
+
+    def fire(self):
+        loop = asyncio.get_event_loop()
         self.fired = True
+        loop.create_task(self._toggle())
         return True
 
     def arm(self):
         self.fired = False
-
 
 
 CONFIG = {
@@ -77,6 +95,7 @@ class FireSystem:
     router = {}
 
     def __init__(self, config):
+        self.active = True
         self.ping = 0
         self.ping_rate = 4000
         self.router["ping"] = self.c_ping
@@ -86,6 +105,29 @@ class FireSystem:
         self.address = "tcp://0.0.0.0:5555"
         self.tubes = []
         self.load_tubes(config.get("tubes"))
+
+    def run(self):
+        try:
+            loop = asyncio.get_event_loop()
+            lifecycle = asyncio.gather(self._lifecycle())
+            loop.create_task(lifecycle)
+            loop.run_forever()
+            #loop.close()
+        except KeyboardInterrupt:
+            self.shutdown()
+
+    async def _lifecycle(self):
+        while self.active:
+            self.establish_socket()
+            self.listen()
+            self.disconnect()
+        self.shutdown()
+
+    def shutdown(self):
+        self.active = False
+        print("Shutting down")
+        loop = asyncio.get_event_loop()
+        loop.stop()
 
     def load_tubes(self, tubes):
         if not tubes:
@@ -185,10 +227,4 @@ class FireSystem:
         })
 
 
-
-
-fs = FireSystem(CONFIG)
-while True:
-    fs.establish_socket()
-    fs.listen()
-    fs.disconnect()
+FireSystem(CONFIG).run()
