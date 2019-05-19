@@ -1,3 +1,5 @@
+# pip3 install gpiozero
+
 import zmq
 
 from tornado import gen, ioloop, web
@@ -9,7 +11,7 @@ import uuid
 import json
 import time
 
-PSK = "md5|{}|bt7f7*f58VFtyuC&^gtFrcFTVGyub^tfrgh76Trdcfr6T7GfRtfG"
+PSK = "md5|{}|<ENTER PRE-SHARED KEY HERE>"
 
 START_PING = 0.1
 
@@ -26,10 +28,9 @@ class BattleField:
             return {'error': "no such tube"}
         result = battalion.send({"fire":{"tube":tube}})
         if result.get("error"):
-            print(result.get("error"))
-            return False
+            return False, result.get("error")
         self.fired.add(result.get("fired"))
-        return result.get("fired")
+        return True, result.get("fired")
    
 
     def ping(self, tube):
@@ -115,12 +116,12 @@ class FireHandler(web.RequestHandler):
                 self.set_status(404)
                 self.write({'error': "Unknown tube"})
                 return
-            fired = battlefield.fire(fire_request.get("tube"))
-            if fired is False:
-                self.set_status(400)
-                self.write({'error': "Failed to fire tube"})
+            fired, message = battlefield.fire(fire_request.get("tube"))
+            if fired:
+                self.write({'fired': message})
             else:
-                self.write({'fired': fired})
+                self.set_status(400)
+                self.write({'error': message})
 
         except JSONDecodeError:
             self.set_status(400)

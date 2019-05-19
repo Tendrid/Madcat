@@ -4,43 +4,27 @@
 # client sends PSK hash with config (tube list)
 # server responds OK
 
-"""
-client requests request to server web api (sends ip)
-server connects to ip and sends  generated random string
-server sends random string
-client sends sha1 of psk and random string
-"""
-
-# client waits for fire instructions
-
-
-"""
-def responder():
-    ctx = zmq.Context()
-    socket = ctx.socket(zmq.ROUTER)
-    socket.bind('tcp://127.0.0.1:5555')
-    i = 0
-    while True:
-        frame, msg = socket.recv_multipart()
-        print("\nworker received %r\n" % msg, end='')
-        socket.send_multipart([frame, msg + b" to you too, #%i" % i])
-        i += 1
-
-responder()
-"""
-PSK = "md5|{}|bt7f7*f58VFtyuC&^gtFrcFTVGyub^tfrgh76Trdcfr6T7GfRtfG"
-
+PSK = "md5|{}|<ENTER PRE-SHARED KEY HERE>"
 
 import zmq
 import json
 import hashlib
 import urllib3
 import time
+from gpiozero import OutputDevice
 
+
+"""
+Fuse is a single ignition point in the launch system.  it does not know
+how many other fuses there are, or their states.
+"""
 class Fuse:
-
-    def __init__(self, _id):
-        self.id = _id
+    def __init__(self, tube_id, relay_id, active_high=False):
+        self.id = tube_id
+        self.relay = OutputDevice(
+            relay_id,
+            active_high=active_high,
+            initial_value= not active_high)
         self.arm()
 
     def fire(self):
@@ -51,15 +35,27 @@ class Fuse:
     def arm(self):
         self.fired = False
 
+
+
+CONFIG = {
+    "tubes":{
+
+    }
+}
+
+"""
+The fire system has an ID, and takes in a config which maps each tube to
+a relay.  The config comes from the Battlefield, and is requested by ID.
+"""
 class FireSystem:
     router = {}
 
     def __init__(self, tubes):
         self.ping = 0
+        self.ping_rate = 4000
         self.router["ping"] = self.c_ping
         self.router["fire"] = self.c_fire
         self.router["auth"] = self.c_auth
-        self.ping_rate = 4000
         self.last_message = 0
         self.address = "tcp://0.0.0.0:5555"
         self.tubes = []
@@ -67,7 +63,7 @@ class FireSystem:
 
     def load_tubes(self, tubes):
         for tube_id in tubes:
-            self.tubes.append(Fuse(tube_id))
+            self.tubes.append(Fuse(tube_id, tube_id))
 
     def establish_socket(self):
         self.context = zmq.Context()
