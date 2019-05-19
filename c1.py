@@ -29,6 +29,9 @@ class Fuse:
 
     def fire(self):
         print("BOOM MOTHERFUCKER")
+        self.relay.on()
+        time.sleep(0.5)
+        self.relay.off()
         self.fired = True
         return True
 
