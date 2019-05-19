@@ -31,8 +31,7 @@ class Fuse:
         self.id = tube_id
         self.relay = OutputDevice(
             pin_id,
-            active_high=active_high,
-            initial_value=False)
+            active_high=active_high)
         self.arm()
 
     def fire(self):
