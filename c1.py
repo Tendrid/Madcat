@@ -14,12 +14,20 @@ import time
 from gpiozero import OutputDevice
 
 
+# TODO:
+"""
+Should keep track of start time, when registering, if start time is greater
+than the start time registered on the battlefield, the battlefield can return
+tube state.  We'll also need a way to force a reload of a list of tubes from
+the battlefield.
+"""
+
 """
 Fuse is a single ignition point in the launch system.  it does not know
 how many other fuses there are, or their states.
 """
 class Fuse:
-    def __init__(self, tube_id, pin_id, active_high=False):
+    def __init__(self, tube_id, pin_id, active_high=True):
         self.id = tube_id
         self.relay = OutputDevice(
             pin_id,
