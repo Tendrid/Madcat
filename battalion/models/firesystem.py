@@ -1,56 +1,44 @@
-# client sends request to bluetooth server MadCat
-# asks to connect, and gives Madcat its IP
-# Madcat connects to client over zmq, requests config.
-# client sends PSK hash with config (tube list)
-# server responds OK
-
-PSK = "md5|{}|<ENTER PRE-SHARED KEY HERE>"
-
-import zmq
-import json
-import hashlib
-import urllib3
-import time
-from gpiozero import OutputDevice
-
-
-"""
-Fuse is a single ignition point in the launch system.  it does not know
-how many other fuses there are, or their states.
-"""
-class Fuse:
-    def __init__(self, tube_id, relay_id, active_high=False):
-        self.id = tube_id
-        self.relay = OutputDevice(
-            relay_id,
-            active_high=active_high,
-            initial_value= not active_high)
-        self.arm()
-
-    def fire(self):
-        print("BOOM MOTHERFUCKER")
-        self.fired = True
-        return True
-
-    def arm(self):
-        self.fired = False
-
-
-
-CONFIG = {
-    "tubes":{
-
-    }
-}
-
 """
 The fire system has an ID, and takes in a config which maps each tube to
 a relay.  The config comes from the Battlefield, and is requested by ID.
 """
+
+from battalion.models.fuse import Fuse
+from zmq import REP, POLLIN
+from zmq.asyncio import Context, Poller
+import hashlib
+import urllib3
+import time
+import asyncio
+
+CONFIG = {
+    "PSK": "md5|{}|<ENTER PRE-SHARED KEY HERE>",
+    "active_high": False,
+    "tubes":{
+        0: 4,
+        1: 17,
+        2: 27,
+        3: 22,
+        4: 5,
+        5: 6,
+        6: 13,
+        7: 19,
+        8: 26,
+        9: 23,
+        10: 24,
+        11: 25,
+        12: 12,
+        13: 16,
+        14: 20,
+        15: 21
+    }
+}
+
 class FireSystem:
     router = {}
 
-    def __init__(self, tubes):
+    def __init__(self):
+        self.active = True
         self.ping = 0
         self.ping_rate = 4000
         self.router["ping"] = self.c_ping
@@ -59,19 +47,44 @@ class FireSystem:
         self.last_message = 0
         self.address = "tcp://0.0.0.0:5555"
         self.tubes = []
-        self.load_tubes(tubes)
+        self.load_tubes(CONFIG.get("tubes"))
+
+    def run(self):
+        try:
+            loop = asyncio.get_event_loop()
+            loop.create_task(self._lifecycle())
+            loop.run_forever()
+        except KeyboardInterrupt:
+            self.shutdown()
+
+    async def _lifecycle(self):
+        while self.active:
+            self.establish_socket()
+            await self.listen()
+            self.disconnect()
+        self.shutdown()
+
+    def shutdown(self):
+        self.active = False
+        print("Shutting down")
+        loop = asyncio.get_event_loop()
+        loop.close()
+        loop.stop()
+        exit()
 
     def load_tubes(self, tubes):
-        for tube_id in tubes:
-            self.tubes.append(Fuse(tube_id, tube_id))
+        if not tubes:
+            raise ValueError("INIT ERROR: No tube config!")
+        for tube_id, pin_id in tubes.items():
+            self.tubes.append(Fuse(tube_id, pin_id))
 
     def establish_socket(self):
-        self.context = zmq.Context()
-        self.socket = self.context.socket(zmq.REP)
+        self.context = Context()
+        self.socket = self.context.socket(REP)
         self.socket.bind(self.address)
 
-        self.poller = zmq.Poller()
-        self.poller.register(self.socket, zmq.POLLIN) # POLLIN for recv, POLLOUT for send
+        self.poller = Poller()
+        self.poller.register(self.socket, POLLIN)
 
         self.ping = 0
         while self.auth() is False:
@@ -80,6 +93,9 @@ class FireSystem:
     def disconnect(self):
         self.socket.disconnect(self.address)
 
+    """
+    Authentication
+    """
     def auth(self):
         http = urllib3.PoolManager()
         try:
@@ -90,24 +106,24 @@ class FireSystem:
         print("Registered to Battlefield")
         return True
 
-    def listen(self):
+    async def listen(self):
         listening = True
         while listening:
-            events = self.poller.poll(self.ping_rate)
+            events = await self.poller.poll(self.ping_rate)
             if events:
-                socket = events[0]
-                msg = self.socket.recv_json()
-                self.last_message = time.time()
-                if type(msg) is not dict:
-                    self.respond_error("Message not a dict!")
-                if len(msg.keys()) != 1:
-                    self.respond_error("Only one request at a time! (for now)")
+                for socket, idx in events:
+                    msg = await self.socket.recv_json()
+                    self.last_message = time.time()
+                    if type(msg) is not dict:
+                        self.respond_error("Message not a dict!")
+                    if len(msg.keys()) != 1:
+                        self.respond_error("Only one request at a time! (for now)")
 
-                for command, request in msg.items():
-                    if type(request) is not dict:
-                        self.respond_error("Request not a dict!")
-                    else:
-                        self.router.get(command, self.invalid_command)(**request)
+                    for command, request in msg.items():
+                        if type(request) is not dict:
+                            self.respond_error("Request not a dict!")
+                        else:
+                            self.router.get(command, self.invalid_command)(**request)
             else:
                 print("Missed ping!")
                 if (time.time() - self.last_message) > (self.ping_rate / 1000) * 3:
@@ -148,19 +164,10 @@ class FireSystem:
         self.ping += 1
 
     def c_auth(self, challenge):
-        response = PSK.format(challenge)
+        response = CONFIG["PSK"].format(challenge)
         self.socket.send_json({
             "auth": {
                 "response": hashlib.md5(response.encode()).hexdigest(),
                 "tubes": self.tube_ids
             }
         })
-
-
-
-
-fs = FireSystem([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15])
-while True:
-    fs.establish_socket()
-    fs.listen()
-    fs.disconnect()
