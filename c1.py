@@ -7,6 +7,7 @@
 PSK = "md5|{}|<ENTER PRE-SHARED KEY HERE>"
 
 import zmq
+from zmq.asyncio import Context, Poller
 import json
 import hashlib
 import urllib3
@@ -109,17 +110,15 @@ class FireSystem:
     def run(self):
         try:
             loop = asyncio.get_event_loop()
-            lifecycle = asyncio.gather(self._lifecycle())
-            loop.create_task(lifecycle)
+            loop.create_task(self._lifecycle())
             loop.run_forever()
-            #loop.close()
         except KeyboardInterrupt:
             self.shutdown()
 
     async def _lifecycle(self):
         while self.active:
             self.establish_socket()
-            self.listen()
+            await self.listen()
             self.disconnect()
         self.shutdown()
 
@@ -127,7 +126,9 @@ class FireSystem:
         self.active = False
         print("Shutting down")
         loop = asyncio.get_event_loop()
+        loop.close()
         loop.stop()
+        exit()
 
     def load_tubes(self, tubes):
         if not tubes:
@@ -136,11 +137,11 @@ class FireSystem:
             self.tubes.append(Fuse(tube_id, pin_id))
 
     def establish_socket(self):
-        self.context = zmq.Context()
+        self.context = Context()
         self.socket = self.context.socket(zmq.REP)
         self.socket.bind(self.address)
 
-        self.poller = zmq.Poller()
+        self.poller = Poller()
         self.poller.register(self.socket, zmq.POLLIN) # POLLIN for recv, POLLOUT for send
 
         self.ping = 0
@@ -150,6 +151,9 @@ class FireSystem:
     def disconnect(self):
         self.socket.disconnect(self.address)
 
+    """
+    Authentication
+    """
     def auth(self):
         http = urllib3.PoolManager()
         try:
@@ -160,24 +164,24 @@ class FireSystem:
         print("Registered to Battlefield")
         return True
 
-    def listen(self):
+    async def listen(self):
         listening = True
         while listening:
-            events = self.poller.poll(self.ping_rate)
+            events = await self.poller.poll(self.ping_rate)
             if events:
-                socket = events[0]
-                msg = self.socket.recv_json()
-                self.last_message = time.time()
-                if type(msg) is not dict:
-                    self.respond_error("Message not a dict!")
-                if len(msg.keys()) != 1:
-                    self.respond_error("Only one request at a time! (for now)")
+                for socket, idx in events:
+                    msg = await self.socket.recv_json()
+                    self.last_message = time.time()
+                    if type(msg) is not dict:
+                        self.respond_error("Message not a dict!")
+                    if len(msg.keys()) != 1:
+                        self.respond_error("Only one request at a time! (for now)")
 
-                for command, request in msg.items():
-                    if type(request) is not dict:
-                        self.respond_error("Request not a dict!")
-                    else:
-                        self.router.get(command, self.invalid_command)(**request)
+                    for command, request in msg.items():
+                        if type(request) is not dict:
+                            self.respond_error("Request not a dict!")
+                        else:
+                            self.router.get(command, self.invalid_command)(**request)
             else:
                 print("Missed ping!")
                 if (time.time() - self.last_message) > (self.ping_rate / 1000) * 3:
