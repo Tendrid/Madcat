@@ -1,72 +1,18 @@
-# client sends request to bluetooth server MadCat
-# asks to connect, and gives Madcat its IP
-# Madcat connects to client over zmq, requests config.
-# client sends PSK hash with config (tube list)
-# server responds OK
+"""
+The fire system has an ID, and takes in a config which maps each tube to
+a relay.  The config comes from the Battlefield, and is requested by ID.
+"""
 
-PSK = "md5|{}|<ENTER PRE-SHARED KEY HERE>"
-
-import zmq
+from battalion.models.fuse import Fuse
+from zmq import REP, POLLIN
 from zmq.asyncio import Context, Poller
-import json
 import hashlib
 import urllib3
 import time
-import os
 import asyncio
 
-from gpiozero import OutputDevice
-from gpiozero.exc import BadPinFactory
-
-
-if os.environ.get("DEBUG"):
-    print("----- DEBUG MODE ENABLED -----")
-
-    class OutputDevice:
-        def __init__(self, *args, **kwargs):
-            self.pin = args[0]
-            print("PIN: {} created with active_high: {}".format(self.pin, kwargs.get("active_high")))
-
-        def on(self):
-            print("PIN: {} set to on".format(self.pin))
-
-        def off(self):
-            print("PIN: {} set to off".format(self.pin))
-
-# TODO:
-"""
-Should keep track of start time, when registering, if start time is greater
-than the start time registered on the battlefield, the battlefield can return
-tube state.  We'll also need a way to force a reload of a list of tubes from
-the battlefield.
-"""
-
-"""
-Fuse is a single ignition point in the launch system.  it does not know
-how many other fuses there are, or their states.
-"""
-class Fuse:
-    def __init__(self, tube_id, pin_id, active_high=False):
-        self.id = tube_id
-        self.relay = OutputDevice(pin_id, active_high=active_high)
-        self.arm()
-
-    async def _toggle(self):
-        self.relay.on()
-        await asyncio.sleep(0.5)
-        self.relay.off()
-
-    def fire(self):
-        loop = asyncio.get_event_loop()
-        self.fired = True
-        loop.create_task(self._toggle())
-        return True
-
-    def arm(self):
-        self.fired = False
-
-
 CONFIG = {
+    "PSK": "md5|{}|<ENTER PRE-SHARED KEY HERE>",
     "active_high": False,
     "tubes":{
         0: 4,
@@ -88,14 +34,10 @@ CONFIG = {
     }
 }
 
-"""
-The fire system has an ID, and takes in a config which maps each tube to
-a relay.  The config comes from the Battlefield, and is requested by ID.
-"""
 class FireSystem:
     router = {}
 
-    def __init__(self, config):
+    def __init__(self):
         self.active = True
         self.ping = 0
         self.ping_rate = 4000
@@ -105,7 +47,7 @@ class FireSystem:
         self.last_message = 0
         self.address = "tcp://0.0.0.0:5555"
         self.tubes = []
-        self.load_tubes(config.get("tubes"))
+        self.load_tubes(CONFIG.get("tubes"))
 
     def run(self):
         try:
@@ -138,11 +80,11 @@ class FireSystem:
 
     def establish_socket(self):
         self.context = Context()
-        self.socket = self.context.socket(zmq.REP)
+        self.socket = self.context.socket(REP)
         self.socket.bind(self.address)
 
         self.poller = Poller()
-        self.poller.register(self.socket, zmq.POLLIN) # POLLIN for recv, POLLOUT for send
+        self.poller.register(self.socket, POLLIN)
 
         self.ping = 0
         while self.auth() is False:
@@ -222,13 +164,10 @@ class FireSystem:
         self.ping += 1
 
     def c_auth(self, challenge):
-        response = PSK.format(challenge)
+        response = CONFIG["PSK"].format(challenge)
         self.socket.send_json({
             "auth": {
                 "response": hashlib.md5(response.encode()).hexdigest(),
                 "tubes": self.tube_ids
             }
         })
-
-
-FireSystem(CONFIG).run()
