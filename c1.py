@@ -19,10 +19,10 @@ Fuse is a single ignition point in the launch system.  it does not know
 how many other fuses there are, or their states.
 """
 class Fuse:
-    def __init__(self, tube_id, relay_id, active_high=False):
+    def __init__(self, tube_id, pin_id, active_high=False):
         self.id = tube_id
         self.relay = OutputDevice(
-            relay_id,
+            pin_id,
             active_high=active_high,
             initial_value= not active_high)
         self.arm()
@@ -38,8 +38,24 @@ class Fuse:
 
 
 CONFIG = {
+    "active_high": False
     "tubes":{
-
+        0: 4,
+        1: 17,
+        2: 27,
+        3: 22,
+        4: 5,
+        5: 6,
+        6: 13,
+        7: 19,
+        8: 26,
+        9: 23,
+        10: 24,
+        11: 25,
+        12: 12,
+        13: 16,
+        14: 20,
+        15: 21
     }
 }
 
@@ -50,7 +66,7 @@ a relay.  The config comes from the Battlefield, and is requested by ID.
 class FireSystem:
     router = {}
 
-    def __init__(self, tubes):
+    def __init__(self, config):
         self.ping = 0
         self.ping_rate = 4000
         self.router["ping"] = self.c_ping
@@ -59,11 +75,13 @@ class FireSystem:
         self.last_message = 0
         self.address = "tcp://0.0.0.0:5555"
         self.tubes = []
-        self.load_tubes(tubes)
+        self.load_tubes(config.get("tubes"))
 
     def load_tubes(self, tubes):
-        for tube_id in tubes:
-            self.tubes.append(Fuse(tube_id, tube_id))
+        if not tubes:
+            raise ValueError("INIT ERROR: No tube config!")
+        for tube_id, pin_id in tubes.items():
+            self.tubes.append(Fuse(tube_id, pin_id))
 
     def establish_socket(self):
         self.context = zmq.Context()
@@ -159,7 +177,7 @@ class FireSystem:
 
 
 
-fs = FireSystem([0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15])
+fs = FireSystem(CONFIG)
 while True:
     fs.establish_socket()
     fs.listen()
