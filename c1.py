@@ -32,7 +32,7 @@ class Fuse:
         self.relay = OutputDevice(
             pin_id,
             active_high=active_high,
-            initial_value= not active_high)
+            initial_value=False)
         self.arm()
 
     def fire(self):
