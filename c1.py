@@ -118,7 +118,7 @@ class FireSystem:
         self.socket.send_json({"error": msg})
 
     def invalid_command(self, **kwargs):
-        self.respond_error(f"not a valid command")
+        self.respond_error("not a valid command")
 
     @property
     def tube_ids(self):

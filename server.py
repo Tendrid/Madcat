@@ -66,7 +66,11 @@ battlefield = BattleField()
 class Battalion:
 
     def __init__(self, addr, port, protocol="tcp"):
-        self.address = f"{protocol}://{addr}:{port}"
+        self.address = "{}://{}:{}".format(
+            protocol,
+            addr,
+            port
+        )
         self.context = zmq.Context.instance()
         self.socket = self.context.socket(zmq.REQ)
         self.socket.connect(self.address)
