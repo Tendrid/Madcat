@@ -1,10 +1,23 @@
 
 class BattleField:
+    fireworks = {}
 
     def __init__(self):
         self.map = set([])
         self.tube_map = {}
         self.fired = set([])
+        self.tube_defs = {}
+
+    def defs(self, config, fireworks):
+        for fw in fireworks:
+            self.fireworks[fw.get('phid')] = fw
+        for k,v in config.items():
+            self.tube_defs[k] = self.fireworks[v]
+
+        total = 0
+        for phid, tube in self.tube_defs.items():
+            total += tube['duration']
+        print(total/60)
 
     def fire(self, tube:int):
         battalion = self.tube_map.get(str(tube))
@@ -19,6 +32,7 @@ class BattleField:
         return True, result.get("fired")
    
     def arm(self, tube:int, battalion):
+        battalion.arm(tube)
         self.tube_map[str(tube)] = battalion
 
     def heartbeat(self):

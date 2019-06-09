@@ -12,7 +12,6 @@ tube state.  We'll also need a way to force a reload of a list of tubes from
 the battlefield.
 """
 
-
 from battalion.models.firesystem import FireSystem
 
 FireSystem().run()

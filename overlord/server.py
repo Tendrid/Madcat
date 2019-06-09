@@ -1,5 +1,5 @@
 # pip3 install gpiozero
-
+"""
 
 from overlord.models.battalion import Battalion
 from overlord.models.battlefield import BattleField
@@ -94,3 +94,4 @@ def start():
 
 if __name__ == "__main__":
     main()
+"""

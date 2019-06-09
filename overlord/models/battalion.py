@@ -1,6 +1,17 @@
 import zmq
 import time
 
+class Fuse:
+    def __init__(self, tube_id):
+        self.id = tube_id
+        self.arm()
+
+    def fire(self):
+        return True
+
+    def arm(self):
+        self.fired = False
+
 class Battalion:
 
     def __init__(self, addr, port, protocol="tcp"):
@@ -14,6 +25,7 @@ class Battalion:
         self.socket.connect(self.address)
         self.__pings = []
         self.ping_history = 10
+        self.tubes = {}
 
     @property
     def ping_rate(self):
@@ -21,6 +33,9 @@ class Battalion:
         if len(pings) < 1:
             return 0
         return sum(pings) / len(pings)
+
+    def arm(self, tube):
+        self.tubes[tube] = Fuse(tube)
 
     def disconnect(self):
         self.socket.disconnect(self.address)

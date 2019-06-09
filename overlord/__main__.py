@@ -3,23 +3,26 @@
 
 from overlord.models.battalion import Battalion
 from overlord.models.battlefield import BattleField
-
-battlefield = BattleField()
-
-from tornado import gen, ioloop, web
+from tornado import gen, ioloop, web, template
 from tornado.escape import json_decode
 from json.decoder import JSONDecodeError
+import json
 import hashlib
 import uuid
+import os
 
+
+battlefield = BattleField()
+with open("overlord/def/fireworks.json") as fw_defs:
+    fw_config = json.load(fw_defs)
+
+with open("overlord/def/config.json") as tube_defs:
+    tube_config = json.load(tube_defs)
+
+battlefield.defs(tube_config, fw_config)
 
 
 PSK = "md5|{}|<ENTER PRE-SHARED KEY HERE>"
-
-# how many ms to add on to the recv wait in the loop
-PING_STEP = 50
-
-
 
 class PingHandler(web.RequestHandler):
 
@@ -30,6 +33,9 @@ class PingHandler(web.RequestHandler):
         self.write(resp)
 
 class FireHandler(web.RequestHandler):
+
+    def check_xsrf_cookie(self, *args, **kwargs):
+        pass
 
     @gen.coroutine
     def post(self):
@@ -71,6 +77,17 @@ class RegisterHandler(web.RequestHandler):
         else:
             print("no good, its full of steam!")
 
+
+class WebUI(web.RequestHandler):
+
+    def get(self):
+        loader = template.Loader("overlord/templates")
+        _t = loader.load("index.html")
+        self.write(_t.generate(
+            battlefield=battlefield,
+            title="foo"
+        ))
+
 async def heartbeat():
     while True:
         battlefield.heartbeat()
@@ -78,13 +95,25 @@ async def heartbeat():
 
 
 def main():
+
+    settings = {
+        "static_path": os.path.join(os.path.dirname(__file__), "dist"),
+        "cookie_secret": "__TODO:_GENERATE_YOUR_OWN_RANDOM_VALUE_HERE__",
+        "login_url": "/login",
+        "xsrf_cookies": True,
+    }
+
     urls = [
+        (r"/", WebUI),
         (r"/ping/([\d]{1,64})", PingHandler),
         (r"/fire", FireHandler),
-        (r"/register", RegisterHandler)        
+        (r"/register", RegisterHandler),
+        (r"/(.*)", web.StaticFileHandler, dict(path=settings['static_path'])),
     ]
 
-    application = web.Application(urls)
+    #npm run build
+
+    application = web.Application(urls, **settings)
     application.listen(8888)
     try:
         ioloop.IOLoop.current().spawn_callback(heartbeat)
