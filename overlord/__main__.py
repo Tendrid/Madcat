@@ -26,10 +26,10 @@ PSK = "md5|{}|<ENTER PRE-SHARED KEY HERE>"
 
 class PingHandler(web.RequestHandler):
 
-    def get(self, tube):
+    def get(self):
         resp = {}
         for b in battlefield.map:
-            resp[b.id] = b.ping_rate
+            resp[str(b.id)] = int(b.ping_rate)
         self.write(resp)
 
 class FireHandler(web.RequestHandler):
@@ -83,10 +83,29 @@ class WebUI(web.RequestHandler):
     def get(self):
         loader = template.Loader("overlord/templates")
         _t = loader.load("index.html")
+        tubes = {}
+        for tid, battalion in battlefield.tube_map.items():
+            tubes[tid] = {"bid": battalion.id}
+            tubes[tid].update(battlefield.tube_defs.get(tid, {}))
         self.write(_t.generate(
+            tubes=tubes,
             battlefield=battlefield,
             title="foo"
         ))
+
+class BattlefieldJSON(web.RequestHandler):
+    def get(self):
+        tubes = []
+        for tid, battalion in battlefield.tube_map.items():
+            tube = {
+                "bid": str(battalion.id),
+                "tid": str(tid)
+            }
+            tube.update(battlefield.tube_defs.get(tid, {}))
+            tubes.append(tube)
+        self.write(json.dumps({
+            "tubes":tubes
+        }))
 
 async def heartbeat():
     while True:
@@ -105,7 +124,8 @@ def main():
 
     urls = [
         (r"/", WebUI),
-        (r"/ping/([\d]{1,64})", PingHandler),
+        (r"/battlefield", BattlefieldJSON),
+        (r"/ping", PingHandler),
         (r"/fire", FireHandler),
         (r"/register", RegisterHandler),
         (r"/(.*)", web.StaticFileHandler, dict(path=settings['static_path'])),

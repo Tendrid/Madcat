@@ -1,5 +1,6 @@
 import zmq
 import time
+import uuid
 
 class Fuse:
     def __init__(self, tube_id):
@@ -26,6 +27,7 @@ class Battalion:
         self.__pings = []
         self.ping_history = 10
         self.tubes = {}
+        self.id = uuid.uuid1()
 
     @property
     def ping_rate(self):
