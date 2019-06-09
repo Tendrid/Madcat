@@ -3,7 +3,7 @@ class BattleField:
     fireworks = {}
 
     def __init__(self):
-        self.map = set([])
+        self.battalions = set([])
         self.tube_map = {}
         self.fired = set([])
         self.tube_defs = {}
@@ -37,7 +37,7 @@ class BattleField:
 
     def heartbeat(self):
         dead = []
-        for b in self.map:
+        for b in self.battalions:
             if b.ping() is False:
                 dead.append(b)
         for battalion in dead:
@@ -46,7 +46,7 @@ class BattleField:
 
     def destroy(self, battalion):
         print("Timeout: destroying battalion {}".format(battalion.address))
-        self.map.remove(battalion)
+        self.battalions.remove(battalion)
         remove = []
         for k, v in self.tube_map.items():
             if v == battalion:

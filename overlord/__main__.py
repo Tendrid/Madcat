@@ -28,7 +28,7 @@ class PingHandler(web.RequestHandler):
 
     def get(self):
         resp = {}
-        for b in battlefield.map:
+        for b in battlefield.battalions:
             resp[str(b.id)] = int(b.ping_rate)
         self.write(resp)
 
@@ -73,7 +73,7 @@ class RegisterHandler(web.RequestHandler):
             for tube in reply["auth"]["tubes"]:
                 print("registering {} to ip {}".format(tube, self.request.remote_ip))
                 battlefield.arm(tube, b)
-            battlefield.map.add(b)
+            battlefield.battalions.add(b)
         else:
             print("no good, its full of steam!")
 
@@ -95,16 +95,20 @@ class WebUI(web.RequestHandler):
 
 class BattlefieldJSON(web.RequestHandler):
     def get(self):
-        tubes = []
-        for tid, battalion in battlefield.tube_map.items():
-            tube = {
+        battalions = []
+        for battalion in battlefield.battalions:
+            b = {
                 "bid": str(battalion.id),
-                "tid": str(tid)
+                "tubes": []
             }
-            tube.update(battlefield.tube_defs.get(tid, {}))
-            tubes.append(tube)
+            for tid, tube in battalion.tubes.items():
+                t = {"tid":tid}
+                t.update(battlefield.tube_defs.get(tid, {}))
+                b["tubes"].append(t)
+            battalions.append(b)
+
         self.write(json.dumps({
-            "tubes":tubes
+            "battalions": battalions
         }))
 
 async def heartbeat():

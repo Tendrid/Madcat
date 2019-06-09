@@ -15,9 +15,29 @@ const styles = {
 };
 
 class Firework extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {isToggleOn: true};
+
+    this.handleClick = this.handleClick.bind(this);
+  }
+
+  handleClick() {
+    fetch('/fire', {
+      method: "POST",
+      body: JSON.stringify({"tube":this.props.tid}),
+    })
+      .then(function(response) {
+        return response.json();
+      })
+      .then(function(myJson) {
+        console.log(JSON.stringify(myJson));
+      });
+  }
+
   render() {
     return (
-      <button className="firework">
+      <button className="firework" onClick={this.handleClick}>
          {this.props.name}
       </button>
     );
@@ -26,7 +46,6 @@ class Firework extends React.Component {
 
 Firework.propTypes = {
   tid: PropTypes.string.isRequired,
-  bid: PropTypes.string.isRequired,
   phid: PropTypes.string.isRequired,
   name: PropTypes.string.isRequired,
   type: PropTypes.string.isRequired,
