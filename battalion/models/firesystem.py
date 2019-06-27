@@ -10,29 +10,9 @@ import hashlib
 import urllib3
 import time
 import asyncio
+import json
+import os
 
-CONFIG = {
-    "PSK": "md5|{}|<ENTER PRE-SHARED KEY HERE>",
-    "active_high": False,
-    "tubes":{
-        0: 4,
-        1: 17,
-        2: 27,
-        3: 22,
-        4: 5,
-        5: 6,
-        6: 13,
-        7: 19,
-        8: 26,
-        9: 23,
-        10: 24,
-        11: 25,
-        12: 12,
-        13: 16,
-        14: 20,
-        15: 21
-    }
-}
 
 class FireSystem:
     router = {}
@@ -47,7 +27,15 @@ class FireSystem:
         self.last_message = 0
         self.address = "tcp://0.0.0.0:5555"
         self.tubes = []
-        self.load_tubes(CONFIG.get("tubes"))
+        self.load_config()
+        self.load_tubes()
+
+    def load_config(self, path="~/.madcat/config.json"):
+        path = os.path.expanduser(path)
+        if os.path.isfile(path) is False:
+            raise EnvironmentError(-1, "MadCat config missing at {}".format(path))
+        with open(path) as fh:
+            self.config = json.load(fh)
 
     def run(self):
         try:
@@ -72,7 +60,8 @@ class FireSystem:
         loop.stop()
         exit()
 
-    def load_tubes(self, tubes):
+    def load_tubes(self):
+        tubes = self.config.get("tubes")
         if not tubes:
             raise ValueError("INIT ERROR: No tube config!")
         for tube_id, pin_id in tubes.items():
@@ -99,7 +88,7 @@ class FireSystem:
     def auth(self):
         http = urllib3.PoolManager()
         try:
-            r = http.request("GET", "http://192.168.86.48:8888/register")
+            r = http.request("GET", "http://{address}:{port}/register".format(**self.config.get("battlefield")))
         except urllib3.exceptions.MaxRetryError:
             print("Cannot connect to Battlefield")
             return False
@@ -164,7 +153,7 @@ class FireSystem:
         self.ping += 1
 
     def c_auth(self, challenge):
-        response = CONFIG["PSK"].format(challenge)
+        response = self.config["PSK"].format(challenge)
         self.socket.send_json({
             "auth": {
                 "response": hashlib.md5(response.encode()).hexdigest(),

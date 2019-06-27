@@ -1,0 +1,39 @@
+<html>
+  <head>
+    <title>{% block title %}Default title{% end %}</title>
+  <script>
+    function fire(fid){
+      fetch('http://192.168.86.48:8888/fire', {
+        method: "POST",
+        body: JSON.stringify({"tube":fid}),
+      })
+        .then(function(response) {
+          return response.json();
+        })
+        .then(function(myJson) {
+          console.log(JSON.stringify(myJson));
+        });
+    }
+  </script>
+  </head>
+  <body>
+    <h1>Battlefield</h1>
+    <ul>
+      {% for tid, tube in tubes.items() %}
+        {% block tube %}
+          <li onclick="fire({{tid}})">
+            <b>{{tube.get('bid')}} {{tid}}</b> {{ escape(tube.get('name', "")) }}
+          </li>
+        {% end %}
+      {% end %}
+    </ul>
+    <h1>Fireworks</h1>
+    <ul>
+      {% for tid, firework in battlefield.tube_defs.items() %}
+        {% block firework %}
+          <li>{{tid}}: {{ escape(firework['name']) }} ({{firework['width']}}x{{firework['length']}})</li>
+        {% end %}
+      {% end %}
+    </ul>
+  </body>
+</html>

@@ -30,8 +30,10 @@ class Fuse:
 
     async def _toggle(self):
         self.relay.on()
+        print("RELAY {} ON".format(self.id))
         await asyncio.sleep(0.5)
         self.relay.off()
+        print("RELAY {} OFF".format(self.id))
 
     def fire(self):
         loop = asyncio.get_event_loop()

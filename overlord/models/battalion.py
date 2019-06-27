@@ -1,5 +1,18 @@
 import zmq
 import time
+import uuid
+
+class Fuse:
+    def __init__(self, tube_id):
+        self.id = tube_id
+        self.arm()
+
+    def fire(self):
+        self.fired = True
+        return self.fired
+
+    def arm(self):
+        self.fired = False
 
 class Battalion:
 
@@ -14,6 +27,8 @@ class Battalion:
         self.socket.connect(self.address)
         self.__pings = []
         self.ping_history = 10
+        self.tubes = {}
+        self.id = uuid.uuid1()
 
     @property
     def ping_rate(self):
@@ -22,8 +37,18 @@ class Battalion:
             return 0
         return sum(pings) / len(pings)
 
+    def arm(self, tube):
+        self.tubes[tube] = Fuse(tube)
+
     def disconnect(self):
         self.socket.disconnect(self.address)
+
+    def fire(self, tube):
+        fuse = self.tubes.get(tube)
+        result = self.send({"fire":{"tube":tube}})
+        if result:
+            fuse.fire()
+        return result
 
     def send(self, msg:dict, block=True):
         # send request to worker
