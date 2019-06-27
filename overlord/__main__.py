@@ -57,6 +57,26 @@ class FireHandler(web.RequestHandler):
             self.write({'error': "Bad JSON format"})
             return
 
+class CueHandler(web.RequestHandler):
+
+    def check_xsrf_cookie(self, *args, **kwargs):
+        pass
+
+    @gen.coroutine
+    def post(self):
+        try:
+            fire_request = json_decode(self.request.body)
+            if fire_request.get("cue") is None:
+                self.set_status(404)
+                self.write({'error': "Unknown cue"})
+                return
+            battlefield.cue(fire_request.get("cue"))
+            self.write({'started': fire_request.get("cue")})
+        except JSONDecodeError:
+            self.set_status(400)
+            self.write({'error': "Bad JSON format"})
+            return
+
 class RegisterHandler(web.RequestHandler):
 
     @gen.coroutine
@@ -102,7 +122,10 @@ class BattlefieldJSON(web.RequestHandler):
                 "tubes": []
             }
             for tid, tube in battalion.tubes.items():
-                t = {"tid":tid}
+                t = {
+                    "tid":tid,
+                    "fired":tube.fired
+                }
                 t.update(battlefield.tube_defs.get(tid, {}))
                 b["tubes"].append(t)
             battalions.append(b)
@@ -131,6 +154,7 @@ def main():
         (r"/battlefield", BattlefieldJSON),
         (r"/ping", PingHandler),
         (r"/fire", FireHandler),
+        (r"/cue", CueHandler),
         (r"/register", RegisterHandler),
         (r"/(.*)", web.StaticFileHandler, dict(path=settings['static_path'])),
     ]

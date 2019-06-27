@@ -8,7 +8,8 @@ class Fuse:
         self.arm()
 
     def fire(self):
-        return True
+        self.fired = True
+        return self.fired
 
     def arm(self):
         self.fired = False
@@ -41,6 +42,13 @@ class Battalion:
 
     def disconnect(self):
         self.socket.disconnect(self.address)
+
+    def fire(self, tube):
+        fuse = self.tubes.get(tube)
+        result = self.send({"fire":{"tube":tube}})
+        if result:
+            fuse.fire()
+        return result
 
     def send(self, msg:dict, block=True):
         # send request to worker

@@ -1,6 +1,7 @@
 import React from 'react';
 import { withStyles } from '@material-ui/core/styles';
 import PropTypes from "prop-types";
+import Button from '@material-ui/core/Button';
 
 const styles = {
   root: {
@@ -14,32 +15,34 @@ const styles = {
   },
 };
 
+
 class Firework extends React.Component {
   constructor(props) {
     super(props);
-    this.state = {isToggleOn: true};
+    this.state = {fired: props.fired};
 
     this.handleClick = this.handleClick.bind(this);
   }
 
   handleClick() {
+    const state = this.state;
     fetch('/fire', {
       method: "POST",
       body: JSON.stringify({"tube":this.props.tid}),
     })
-      .then(function(response) {
-        return response.json();
-      })
-      .then(function(myJson) {
-        console.log(JSON.stringify(myJson));
-      });
+    .then(response => response.json())
+    .then(message => {
+      this.setState({fired:true})
+      console.log(message)
+    })
+    .catch(error => console.error(error));
   }
 
   render() {
     return (
-      <button className="firework" onClick={this.handleClick}>
+      <Button variant="contained" fired={this.state.fired} color="primary" height={this.props.height} onClick={this.handleClick}>
          {this.props.name}
-      </button>
+      </Button>
     );
   }
 }
@@ -51,7 +54,8 @@ Firework.propTypes = {
   type: PropTypes.string.isRequired,
   length: PropTypes.number.isRequired,
   width: PropTypes.number.isRequired,
-  duration: PropTypes.number.isRequired
+  duration: PropTypes.number.isRequired,
+  fired: PropTypes.bool.isRequired
 };
 
 export default withStyles(styles)(Firework);
