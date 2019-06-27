@@ -1,5 +1,6 @@
 
 
+
 """
 Cues:
 
@@ -67,6 +68,7 @@ class BattleField:
             return {'error': "no such tube"}
 
         result = battalion.fire(tube)
+
         if result is False:
             return False, "Socket timeout"            
         elif result.get("error"):
@@ -75,6 +77,7 @@ class BattleField:
    
     def arm(self, tube, battalion):
         battalion.arm(tube)
+
         self.tube_map[str(tube)] = battalion
 
     def heartbeat(self):

@@ -13,6 +13,7 @@ import asyncio
 import json
 import os
 
+
 class FireSystem:
     router = {}
 
