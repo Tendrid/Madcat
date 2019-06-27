@@ -8,14 +8,15 @@ import RadioGroup from '@material-ui/core/RadioGroup';
 import Radio from '@material-ui/core/Radio';
 import Paper from '@material-ui/core/Paper';
 
-//import Firework from '../presentational/Firework.jsx'
 import Battalion from '../presentational/Battalion.jsx'
+import Cue from '../presentational/Cue.jsx'
 
 class Battlefield extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            battalions: Array()
+            battalions: Array(),
+            cues: Array()
         };
     }
 
@@ -35,9 +36,17 @@ class Battlefield extends React.Component {
     }
 
     renderBattalion() {
-        console.log(this.state)
         let field = this.state.battalions.map((props) => {
             return <Battalion key={props.bid} {...props} />
+        })
+        return field
+    }
+
+    renderCues() {
+        //let field = Object.entries(this.state.cues).map((cue) => {
+        let field = Object.entries(this.state.cues).map((cue) => {
+            let [name, config] = cue
+            return <Cue key={name} name={name} duration={config.duration} cue={config.cue} />
         })
         return field
     }
@@ -47,6 +56,8 @@ class Battlefield extends React.Component {
             <Paper>
                 <p>Battalions:</p>
                 {this.renderBattalion()}
+                <p>Cues:</p>
+                {this.renderCues()}
             </Paper>
         );
     }

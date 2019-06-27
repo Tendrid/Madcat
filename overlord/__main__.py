@@ -131,7 +131,8 @@ class BattlefieldJSON(web.RequestHandler):
             battalions.append(b)
 
         self.write(json.dumps({
-            "battalions": battalions
+            "battalions": battalions,
+            "cues": battlefield.cue_defs
         }))
 
 async def heartbeat():
