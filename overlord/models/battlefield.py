@@ -58,9 +58,13 @@ class BattleField:
         if self.cue_defs.get(cue) is None:
             return False, "Invalid cue name"
         print("Starting cue {} which will last for {} seconds".format(cue, self.cue_defs.get(cue)["duration"]))
+        current_cue_time = 0
         for firework in self.cue_defs.get(cue)["cue"]:
-            yield gen.sleep(firework["offset"])
+            offset = firework["offset"] - current_cue_time
+            print("Waiting {} seconds to fire {}".format(offset, firework["tube_id"]))
+            yield gen.sleep(offset)
             self.fire(firework["tube_id"])
+            current_cue_time += offset
 
     def fire(self, tube):
         battalion = self.tube_map.get(str(tube))

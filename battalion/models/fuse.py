@@ -5,6 +5,7 @@ from os import environ
 import asyncio
 
 if environ.get("DEBUG"):
+    import time
     print("----- DEBUG MODE ENABLED -----")
 
     class OutputDevice:
@@ -13,10 +14,10 @@ if environ.get("DEBUG"):
             print("PIN: {} created with active_high: {}".format(self.pin, kwargs.get("active_high")))
 
         def on(self):
-            print("PIN: {} set to on".format(self.pin))
+            print("[{}] PIN: {} set to on".format(time.time(), self.pin))
 
         def off(self):
-            print("PIN: {} set to off".format(self.pin))
+            print("[{}] PIN: {} set to off".format(time.time(), self.pin))
 
 """
 Fuse is a single ignition point in the launch system.  it does not know
