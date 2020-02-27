@@ -28,7 +28,7 @@ class Firework extends React.Component {
     const state = this.state;
     fetch('/fire', {
       method: "POST",
-      body: JSON.stringify({"tube":this.props.tid}),
+      body: JSON.stringify({"unit":this.props.tid}),
     })
     .then(response => response.json())
     .then(message => {

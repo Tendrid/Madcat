@@ -1,5 +1,5 @@
 """
-The fire system has an ID, and takes in a config which maps each tube to
+The fire system has an ID, and takes in a config which maps each unit to
 a relay.  The config comes from the Battlefield, and is requested by ID.
 """
 
@@ -26,9 +26,9 @@ class FireSystem:
         self.router["auth"] = self.c_auth
         self.last_message = 0
         self.address = "tcp://0.0.0.0:5555"
-        self.tubes = []
+        self.units = []
         self.load_config()
-        self.load_tubes()
+        self.load_units()
 
     def load_config(self, path="~/.madcat/config.json"):
         path = os.path.expanduser(path)
@@ -60,12 +60,12 @@ class FireSystem:
         loop.stop()
         exit()
 
-    def load_tubes(self):
-        tubes = self.config.get("tubes")
-        if not tubes:
-            raise ValueError("INIT ERROR: No tube config!")
-        for tube_id, pin_id in tubes.items():
-            self.tubes.append(Fuse(tube_id, pin_id))
+    def load_units(self):
+        units = self.config.get("units")
+        if not units:
+            raise ValueError("INIT ERROR: No units config!")
+        for unit_id, pin_id in units.items():
+            self.units.append(Fuse(unit_id, pin_id))
 
     def establish_socket(self):
         self.context = Context()
@@ -85,10 +85,16 @@ class FireSystem:
     """
     Authentication
     """
+
     def auth(self):
         http = urllib3.PoolManager()
         try:
-            r = http.request("GET", "http://{address}:{port}/register".format(**self.config.get("battlefield")))
+            r = http.request(
+                "GET",
+                "http://{address}:{port}/register".format(
+                    **self.config.get("battlefield")
+                ),
+            )
         except urllib3.exceptions.MaxRetryError:
             print("Cannot connect to Battlefield")
             return False
@@ -126,27 +132,27 @@ class FireSystem:
         self.respond_error("not a valid command")
 
     @property
-    def tube_ids(self):
-        return [x.id for x in self.tubes]
+    def unit_ids(self):
+        return [x.id for x in self.units]
 
-    def get_tube(self, tube):
-        for t in self.tubes:
-            if t.id == tube:
+    def get_unit(self, unit):
+        for t in self.units:
+            if t.id == unit:
                 return t
         return None
 
     def c_fire(self, **kwargs):
-        tube = self.get_tube(kwargs.get("tube"))
-        if tube is None:
-            self.respond_error("I dont own tube {}".format(kwargs.get("tube")))
+        unit = self.get_unit(kwargs.get("unit"))
+        if unit is None:
+            self.respond_error("I dont own unit {}".format(kwargs.get("unit")))
         else:
-            if tube.fired:
-                self.respond_error("Tube {} is not armed!".format(tube.id))
+            if unit.fired:
+                self.respond_error("Unit {} is not armed!".format(unit.id))
             else:
-                if tube.fire():
-                    self.socket.send_json({"fired": tube.id})
+                if unit.fire():
+                    self.socket.send_json({"fired": unit.id})
                 else:
-                    self.respond_error("Tube {} failed to fire!".format(tube.id))
+                    self.respond_error("Unit {} failed to fire!".format(unit.id))
 
     def c_ping(self, **kwargs):
         self.socket.send_json({"pong": self.ping})
@@ -154,9 +160,11 @@ class FireSystem:
 
     def c_auth(self, challenge):
         response = self.config["PSK"].format(challenge)
-        self.socket.send_json({
-            "auth": {
-                "response": hashlib.md5(response.encode()).hexdigest(),
-                "tubes": self.tube_ids
+        self.socket.send_json(
+            {
+                "auth": {
+                    "response": hashlib.md5(response.encode()).hexdigest(),
+                    "units": self.unit_ids,
+                }
             }
-        })
+        )

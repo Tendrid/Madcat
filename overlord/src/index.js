@@ -1,5 +1,5 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import Battlefield from "./js/components/container/Battlefield.jsx";
+import Legion from "./js/components/container/Legion.jsx";
 
-ReactDOM.render(<Battlefield />, document.querySelector('#root'));
+ReactDOM.render(<Legion />, document.querySelector('#root'));

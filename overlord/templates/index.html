@@ -17,7 +17,7 @@
   </script>
   </head>
   <body>
-    <h1>Battlefield</h1>
+    <h1>Legion</h1>
     <ul>
       {% for tid, tube in tubes.items() %}
         {% block tube %}
@@ -29,7 +29,7 @@
     </ul>
     <h1>Fireworks</h1>
     <ul>
-      {% for tid, firework in battlefield.tube_defs.items() %}
+      {% for tid, firework in legion.tube_defs.items() %}
         {% block firework %}
           <li>{{tid}}: {{ escape(firework['name']) }} ({{firework['width']}}x{{firework['length']}})</li>
         {% end %}

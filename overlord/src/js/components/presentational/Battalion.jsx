@@ -14,27 +14,36 @@ const styles = {
 
 class Battalion extends React.Component {
   constructor(props) {
-      super(props);
-      this.state = {
-          tubes: props.tubes
-      };
+    super(props);
+    this.state = {
+      units: props.units,
+      squadrons: props.squadrons
+    };
+  }
+
+  renderSquadron() {
+    const squadrons = this.state.squadrons || []
+    let field = squadrons.map((props) => {
+      console.log(props)
+    })
   }
 
   renderFirework() {
-      const tubes = this.state.tubes || []
-      let field = tubes.map((props) => {
-          if (props.name) {
-              return <Firework key={props.tid} {...props} />
-          }
-      })
-      return field
+    this.renderSquadron()
+    const units = this.state.units || []
+    let field = units.map((props) => {
+      if (props.name) {
+          return <Firework key={props.tid} {...props} />
+      }
+    })
+    return field
   }
 
   render() {
     return (
       <div>
-         <h4>{this.props.bid}</h4>
-         {this.renderFirework()}
+        <h4>{this.props.bid}</h4>
+        {this.renderFirework()}
       </div>
     );
   }
@@ -42,7 +51,7 @@ class Battalion extends React.Component {
 
 Battalion.propTypes = {
   bid: PropTypes.string.isRequired,
-  tubes: PropTypes.array.isRequired,
+  units: PropTypes.array.isRequired,
 };
 
 export default withStyles(styles)(Battalion);

@@ -1,10 +1,15 @@
 import zmq
 import time
 import uuid
+from dataclasses import dataclass
 
+
+@dataclass
 class Fuse:
-    def __init__(self, tube_id):
-        self.id = tube_id
+    id: str
+    fired: bool = False
+
+    def __post_init__(self):
         self.arm()
 
     def fire(self):
@@ -14,20 +19,16 @@ class Fuse:
     def arm(self):
         self.fired = False
 
-class Battalion:
 
+class Battalion:
     def __init__(self, addr, port, protocol="tcp"):
-        self.address = "{}://{}:{}".format(
-            protocol,
-            addr,
-            port
-        )
+        self.address = "{}://{}:{}".format(protocol, addr, port)
         self.context = zmq.Context.instance()
         self.socket = self.context.socket(zmq.REQ)
         self.socket.connect(self.address)
         self.__pings = []
         self.ping_history = 10
-        self.tubes = {}
+        self.units = {}
         self.id = uuid.uuid1()
 
     @property
@@ -37,20 +38,20 @@ class Battalion:
             return 0
         return sum(pings) / len(pings)
 
-    def arm(self, tube):
-        self.tubes[tube] = Fuse(tube)
+    def arm(self, unit):
+        self.units[unit] = Fuse(unit)
 
     def disconnect(self):
         self.socket.disconnect(self.address)
 
-    def fire(self, tube):
-        fuse = self.tubes.get(tube)
-        result = self.send({"fire":{"tube":tube}})
+    def fire(self, unit):
+        fuse = self.units.get(unit)
+        result = self.send({"fire": {"unit": unit}})
         if result:
             fuse.fire()
         return result
 
-    def send(self, msg:dict, block=True):
+    def send(self, msg: dict, block=True):
         # send request to worker
         self.socket.send_json(msg)
 
@@ -71,9 +72,9 @@ class Battalion:
 
     def ping(self):
         if len(self.__pings) > self.ping_history:
-            self.__pings = self.__pings[:self.ping_history]
+            self.__pings = self.__pings[: self.ping_history]
         s = time.time() * 1000
-        pong = self.send({"ping":{}})
+        pong = self.send({"ping": {}})
         if pong is False:
             self.__pings.insert(0, None)
             return False
