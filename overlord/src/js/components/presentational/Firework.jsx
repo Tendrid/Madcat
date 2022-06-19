@@ -1,61 +1,140 @@
-import React from 'react';
-import { withStyles } from '@material-ui/core/styles';
+import React, { useState, useEffect, useContext } from 'react';
+import { makeStyles } from '@material-ui/core/styles';
 import PropTypes from "prop-types";
+import Grid from '@material-ui/core/Grid';
 import Button from '@material-ui/core/Button';
+import Fab from '@material-ui/core/Fab';
+import Avatar from '@material-ui/core/Avatar';
+import Badge from '@material-ui/core/Badge';
+import CircularProgress from '@material-ui/core/CircularProgress';
+import Zoom from '@material-ui/core/Zoom';
 
-const styles = {
+import ListItem from '@material-ui/core/ListItem';
+import ListItemIcon from '@material-ui/core/ListItemIcon';
+import ListItemText from '@material-ui/core/ListItemText';
+import ListSubheader from '@material-ui/core/ListSubheader';
+
+
+import { orange, red } from '@material-ui/core/colors';
+
+import {LegionContext} from '../context/LegionProvider.jsx'
+
+const useStyles = makeStyles((theme) => ({
+  test: theme,
   root: {
-    background: 'linear-gradient(45deg, #FE6B8B 30%, #FF8E53 90%)',
-    border: 0,
-    borderRadius: 3,
-    boxShadow: '0 3px 5px 2px rgba(255, 105, 135, .3)',
-    color: 'white',
-    height: 48,
-    padding: '0 30px',
+    display: 'flex',
+    alignItems: 'center',
   },
-};
+  wrapper: {
+    margin: theme.spacing(1),
+    position: 'relative',
+  },
+  preFire: {
+    color: orange[300],
+    position: 'absolute',
+    top: -6,
+    left: -6,
+  },
+  fired: {
+    color: theme.palette.secondary.main,
+    position: 'absolute',
+    top: -6,
+    left: -6,
+  },
+  itemText: {
+    marginLeft: '20px'
+  }
+}));
 
+const fireDelay = 3000;
 
-class Firework extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {fired: props.fired};
+function Firework(props) {
+  const context = useContext(LegionContext)
+  const unit = context.units[props.uid]
+  console.log(unit)
 
-    this.handleClick = this.handleClick.bind(this);
+  const [progress, setProgress] = useState(0);
+  const [countdown, setCountdown] = useState(unit.fired ? 0 : unit.duration);
+  const [preFire, setPreFire] = useState(false)
+  const [error, setError] = useState(unit.error)
+
+  const classes = useStyles();
+
+  useEffect(() => {
+    console.log("in effect", progress);
+    setError('')
+    if (progress === -1 && unit.fired > 0 && unit.armed === true) {
+      let p = 0
+      const timer = setInterval(() => {
+          p = p + (100/ unit.duration)
+          setCountdown(Math.ceil(unit.duration - ((p/100) * unit.duration)))
+          if (p >= 100){
+              p = 0;
+              clearInterval(timer)
+              unit.armed = true;
+          }
+          setProgress(p)
+      }, 1000);
+    }
+  }, [unit.fired]);
+
+  useEffect(() => {
+    if (unit.error) {
+      setError(unit.error)
+      setPreFire(false)
+      setProgress(0)
+    }
+  }, [unit.error]);
+
+  const handleFireEvent = (uid) => {
+    setPreFire(true)
+    setProgress(-1)
+    context.fireUnit(uid)
+    setTimeout(() => {
+      setPreFire(false)
+    }, fireDelay)
   }
 
-  handleClick() {
-    const state = this.state;
-    fetch('/fire', {
-      method: "POST",
-      body: JSON.stringify({"unit":this.props.tid}),
-    })
-    .then(response => response.json())
-    .then(message => {
-      this.setState({fired:true})
-      console.log(message)
-    })
-    .catch(error => console.error(error));
-  }
+  //                src={unit.phantom_def ? `http://fireworks.com/${unit.phantom_def.img}` : null}
 
-  render() {
-    return (
-      <Button variant="contained" fired={this.state.fired} color="primary" height={this.props.height} onClick={this.handleClick}>
-         {this.props.name}
-      </Button>
-    );
-  }
+  return (
+    <ListItem>
+      <div className={classes.root}>
+        <div className={classes.wrapper}>
+          <Badge
+            color="secondary"
+            anchorOrigin={{
+              vertical: 'top',
+              horizontal: 'right',
+            }}
+            badgeContent={unit.fired}
+          >
+            <Fab
+              aria-label="fire"
+              color={unit.fired && unit.armed ? 'secondary': 'primary'}
+              onClick={() => handleFireEvent(props.uid)}
+              disabled={!unit.armed}
+            >
+              <Avatar alt={unit.phantom_def ? unit.phantom_def.name : unit.name}>
+                {progress ? countdown : unit.tid}
+              </Avatar>
+            </Fab>
+            {progress != 0 && 
+              <CircularProgress
+                size={68}
+                variant="static"
+                value={progress}
+                className={preFire ? classes.preFire : classes.fired}
+              />
+            }
+          </Badge>
+        </div>
+      </div>
+      <ListItemText className={classes.itemText} primary={unit.name} secondary={error || `${unit.phid} - ${unit.duration}s`} />
+    </ListItem>
+  );
+
 }
 
-Firework.propTypes = {
-  tid: PropTypes.string.isRequired,
-  phid: PropTypes.string.isRequired,
-  name: PropTypes.string.isRequired,
-  type: PropTypes.string.isRequired,
-  length: PropTypes.number.isRequired,
-  width: PropTypes.number.isRequired,
-  duration: PropTypes.number.isRequired,
-  fired: PropTypes.bool.isRequired
-};
 
-export default withStyles(styles)(Firework);
+export default Firework;

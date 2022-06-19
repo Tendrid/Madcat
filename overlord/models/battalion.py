@@ -7,17 +7,19 @@ from dataclasses import dataclass
 @dataclass
 class Fuse:
     id: str
-    fired: bool = False
+    fired: int = 0
+    armed: bool = False
 
     def __post_init__(self):
         self.arm()
 
     def fire(self):
-        self.fired = True
+        self.fired += 1
         return self.fired
 
     def arm(self):
-        self.fired = False
+        self.fired = 0
+        self.armed = True
 
 
 class Battalion:
@@ -53,7 +55,10 @@ class Battalion:
 
     def send(self, msg: dict, block=True):
         # send request to worker
-        self.socket.send_json(msg)
+        try:
+            self.socket.send_json(msg)
+        except zmq.error.ZMQError:
+            return False
 
         ttl = 1
         lt = st = time.time()

@@ -19,17 +19,17 @@
   <body>
     <h1>Legion</h1>
     <ul>
-      {% for tid, tube in tubes.items() %}
+      {% for tid, unit in units.items() %}
         {% block tube %}
           <li onclick="fire({{tid}})">
-            <b>{{tube.get('bid')}} {{tid}}</b> {{ escape(tube.get('name', "")) }}
+            <b>{{unit.get('bid')}} {{tid}}</b> {{ escape(unit.get('name', "")) }}
           </li>
         {% end %}
       {% end %}
     </ul>
     <h1>Fireworks</h1>
     <ul>
-      {% for tid, firework in legion.tube_defs.items() %}
+      {% for tid, firework in legion.unit_defs.items() %}
         {% block firework %}
           <li>{{tid}}: {{ escape(firework['name']) }} ({{firework['width']}}x{{firework['length']}})</li>
         {% end %}

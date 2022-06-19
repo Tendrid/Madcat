@@ -7,7 +7,7 @@
 
 from overlord.models.battalion import Battalion
 from overlord.models.legion import Legion
-from tornado import gen, ioloop, web, template
+from tornado import gen, ioloop, web, websocket, template
 from tornado.escape import json_decode
 from json.decoder import JSONDecodeError
 import json
@@ -15,6 +15,11 @@ import hashlib
 import uuid
 import os
 
+import logging
+
+logging.basicConfig(format="%(asctime)s %(message)s")
+
+EVENT_CONNECTIONS = set([])
 
 legion = Legion()
 with open("overlord/def/fireworks.json") as fw_defs:
@@ -22,6 +27,12 @@ with open("overlord/def/fireworks.json") as fw_defs:
 
 with open("overlord/def/config.json") as unit_defs:
     unit_config = json.load(unit_defs)
+
+phantom_config = {}
+with open("overlord/def/phantom.json") as phantom_defs:
+    for firework in json.load(phantom_defs):
+        phantom_config[firework["sku"]] = firework
+
 
 legion.defs(unit_config, fw_config)
 
@@ -51,6 +62,20 @@ class FireHandler(web.RequestHandler):
                 return
             fired, message = legion.fire(fire_request.get("unit"))
             if fired:
+                tid = fire_request.get("unit")
+                unit = legion.unit_defs.get(tid, {})
+                logging.warning(f"<{unit['name']}> was fired from <{tid}>")
+
+                destroy = []
+                for client in EVENT_CONNECTIONS:
+                    try:
+                        client.write_message({"fired": message})
+                    except websocket.WebSocketClosedError:
+                        destroy.append(client)
+
+                for d in destroy:
+                    EVENT_CONNECTIONS.remove(client)
+
                 self.write({"fired": message})
             else:
                 self.set_status(400)
@@ -116,22 +141,53 @@ class WebUI(web.RequestHandler):
 class LegionJSON(web.RequestHandler):
     def get(self):
         battalions = []
-        for battalion in legion.battalions:
-            b = {"bid": str(battalion.id), "units": []}
-            for tid, unit in battalion.units.items():
-                t = {"tid": tid, "fired": unit.fired}
-                t.update(legion.unit_defs.get(tid, {}))
-                b["units"].append(t)
-            battalions.append(b)
+        units = {}
+
+        out = {}
+        for bid, squadron_ids in legion.config["battalions"].items():
+            out[bid] = {}
+            for sid in squadron_ids:
+                out[bid][sid] = []
+                for uid in legion.config["squadrons"][sid]:
+                    unit = {"tid": uid, "error": ""}
+                    if legion.unit_map.get(uid):
+                        unit["fired"] = legion.unit_map.get(uid).units[uid].fired
+                        unit["armed"] = legion.unit_map.get(uid).units[uid].armed
+                    else:
+                        unit["fired"] = 0
+                        unit["armed"] = False
+                    unit.update(legion.unit_defs.get(uid, {}))
+                    if not phantom_config.get(unit["phid"]):
+                        print(f"Failed match for phid {unit['phid']}")
+                        unit["phantom_def"] = None
+                    else:
+                        unit["phantom_def"] = phantom_config.get(unit["phid"])
+                    out[bid][sid].append(uid)
+                    units[uid] = unit
+
         self.write(
             json.dumps(
                 {
-                    "battalions": battalions,
+                    "battalions": out,
+                    "units": units,
                     "cues": legion.cue_defs,
-                    "squadrons": legion.squadrons,
+                    # "squadrons": legion.squadrons,
                 }
             )
         )
+
+
+class FireEvents(websocket.WebSocketHandler):
+    def open(self):
+        EVENT_CONNECTIONS.add(self)
+        print("WebSocket opened")
+
+    def on_message(self, message):
+        self.write_message("You said: " + message)
+
+    def on_close(self):
+        EVENT_CONNECTIONS.remove(self)
+        print("WebSocket closed")
 
 
 async def heartbeat():
@@ -156,13 +212,14 @@ def main():
         (r"/fire", FireHandler),
         (r"/cue", CueHandler),
         (r"/register", RegisterHandler),
+        (r"/events", FireEvents),
         (r"/(.*)", web.StaticFileHandler, dict(path=settings["static_path"])),
     ]
 
     # npm run build
 
     application = web.Application(urls, **settings)
-    application.listen(8888)
+    application.listen(8889, "0.0.0.0")
     try:
         ioloop.IOLoop.current().spawn_callback(heartbeat)
         ioloop.IOLoop.instance().start()

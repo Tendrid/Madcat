@@ -18,8 +18,10 @@ class Legion:
         self.unit_defs = {}
         self.cue_defs = {}
         self.squadrons = {}
+        self.config = {}
 
     def defs(self, config, fireworks):
+        self.config = config
         for fw in fireworks:
             self.fireworks[fw.get("phid")] = fw
 
@@ -73,7 +75,7 @@ class Legion:
     def fire(self, unit):
         battalion = self.unit_map.get(str(unit))
         if battalion is None:
-            return {"error": "no such unit"}
+            return False, "no such unit"
 
         result = battalion.fire(unit)
 

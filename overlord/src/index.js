@@ -1,5 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
-import Legion from "./js/components/container/Legion.jsx";
+//import {LegionProvider} from './js/components/context/LegionProvider.jsx'
+import App from './App';
 
-ReactDOM.render(<Legion />, document.querySelector('#root'));
+//ReactDOM.render(<LegionProvider/>, document.querySelector('#root'));
+ReactDOM.render(<App />, document.getElementById('root'));
